@@ -2,6 +2,11 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QMultiMap>
+#include <QMouseEvent>
+#include <QStringList>
+#include <QStandardItemModel>
+#include <QAbstractItemView>
 #include <QMessageBox>
 #include <QDebug>
 
@@ -30,6 +35,9 @@ public:
     ~MainWindow();
 private:
     int read_data();
+    bool eventFilter(QObject *obj, QEvent *event);
+    void generation_chains();
+    void get_rules_for_gen_chains();
     void da(QChar symbol);
     void add_var(QString str);
     void del_var_stek(int size);
@@ -45,8 +53,10 @@ private:
 private slots:
     void analysis_chain_slot();
     void start_slot();
+    void check_slot();
 private:
     Ui::MainWindow *ui;
+    QMultiMap<QString, QString> rules_map;
     QStringList list_no_term;
     QStringList list_rules;
     QVector <symbol> stek;
@@ -54,6 +64,7 @@ private:
     QStringList list_var;
     QString start_no_term;
     QString user_chain;
+    QStandardItemModel model_chains;
     int min;
     int max;
 };

@@ -6,8 +6,10 @@ MainWindow::MainWindow(QWidget *parent) :
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-//    connect(ui->butt_path, SIGNAL(clicked()), SLOT(start_slot()));
-    //    connect(ui->butt_check);
+    qApp->installEventFilter(this);
+    ui->listView->setEditTriggers( QAbstractItemView::NoEditTriggers);
+    //    connect(ui->butt_path, SIGNAL(clicked()), SLOT(start_slot()));
+    connect(ui->butt_check, SIGNAL(clicked()), SLOT(check_slot()));
     connect(ui->butt_start, SIGNAL(clicked()), SLOT(start_slot()));
 }
 
@@ -99,7 +101,7 @@ void MainWindow::del_var_ans(int &index)
 bool MainWindow::check_stek_term(int index)
 {
     for (int i = stek.size() - 1, j = index; i >= 0; i--) {
-        if(stek[i].term){
+        if(stek[i].term && stek[i].symb != "~"){
             if(stek[i].symb != user_chain[j]){
                 return false;
             }
@@ -123,13 +125,13 @@ bool MainWindow::check_cont_chain(int index)
 {
     QString str;
     for(int i = stek.size() - 1 ; i >= 0; i--){
-        if(stek[i].term){
+        if(stek[i].term && stek[i].symb != "~"){
             str += stek[i].symb;
         }
     }
-//    qDebug() << "UC = " << user_chain.right(user_chain.size() - index);
-//    qDebug() << "str = " << str;
-//    qDebug() << "i = " << index;
+    //    qDebug() << "UC = " << user_chain.right(user_chain.size() - index);
+    //    qDebug() << "str = " << str;
+    //    qDebug() << "i = " << index;
     if(user_chain.right(user_chain.size() - index).contains(str)){
         return true;
     }
@@ -140,10 +142,11 @@ bool MainWindow::check_ans_chain()
 {
     QString str;
     for (int i = 0; i < ans.size(); i++) {
-        if(ans[i].term){
+        if(ans[i].term && ans[i].symb != "~"){
             str += ans[i].symb;
         }
     }
+    qDebug() << str << " " << user_chain;
     if(user_chain == str){
         return true;
     }
@@ -198,7 +201,9 @@ QString MainWindow::print_vec_symb(QVector<symbol> vec)
     QString str;
     for (auto &symb : vec) {
         if(symb.term){
-            str += symb.symb;
+            if(symb.symb != "~"){
+                str += symb.symb;
+            }
         }else{
             str += (QString)symb.symb + "(" + QString::number(symb.var) + ")";
         }
@@ -242,10 +247,10 @@ void MainWindow::analysis_chain_slot()
                         break;
                     }
                 }else{
-                    for (int i = ans.size() - 1; i >= 0 && !stek.isEmpty(); i--) {
-                        if(!ans[i].term){
-                            del_var_stek(list_var[ans[i].var].size());
-                            stek << ans[i];
+                    for (int j = ans.size() - 1; j >= 0 && !stek.isEmpty(); j--) {
+                        if(!ans[j].term){
+                            del_var_stek(list_var[ans[j].var].size());
+                            stek << ans[j];
                             stek[stek.size() - 1].var++;
                             break;
                         }
@@ -263,7 +268,7 @@ void MainWindow::analysis_chain_slot()
                 }
                 while(ans[ans.size() - 1].term){
                     qDebug("Huy1");
-                    if(){
+                    if(ans[ans.size() - 1].symb != "~"){
                         i--;
                     }
                     stek << ans[ans.size() - 1];
@@ -292,8 +297,125 @@ void MainWindow::analysis_chain_slot()
     ui->fild_out->append("(Q," + QString::number(user_chain.size() - 1) + "," + print_vec_symb(ans) + ", "  + print_vec_symb(stek) + ")");
     qDebug() << "(Q," + QString::number(user_chain.size() - 1) + "," + print_vec_symb(ans) + ", "  + print_vec_symb(stek) + ")";
 }
+void MainWindow::get_rules_for_gen_chains()
+{
+    rules_map.clear();
+    QStringList line_rules;
+    if(!ui->fild_rule->toPlainText().isEmpty()){
+        line_rules = ui->fild_rule->toPlainText().split("\n");
+        QStringList one_line_rule;
+        QStringList rules;
+        for(int i = 0; i < line_rules.size(); i++){
+            one_line_rule = line_rules[i].split("->");
+            rules = one_line_rule[1].split("|");
+            //qDebug() <<rules;
+            for(int j = 0; j < rules.size(); j++){
+                rules_map.insert(one_line_rule[0],rules[j]);
+            }
+        }
+    }
+
+    //qDebug()<<rules_map;
+}
+
+bool MainWindow::eventFilter(QObject *obj, QEvent *event)
+{
+
+
+     if (obj == ui->listView->viewport() && event->type() == QEvent::MouseButtonDblClick)
+    {
+
+       QMouseEvent *ev = static_cast<QMouseEvent *>(event);
+       clear_all_data();
+       read_data();
+       user_chain = ui->listView->indexAt(ev->pos()).data().toString();
+       ui->fild_chain->setText(user_chain);
+       analysis_chain_slot();
+    }
+    return QObject::eventFilter(obj, event);
+}
+
+void MainWindow::generation_chains()
+{
+    QStringList chains = rules_map.values(start_no_term);
+    QStringList chains_next_step;
+    QStringList answer;
+    QString chain;
+    QStringList rule_variants;
+    bool flag_no_term = false;
+    short int size_chain_term = 0;
+    qDebug() << chains;
+    for(; chains.size() > 0;){
+        flag_no_term = false;
+        size_chain_term = 0;
+        for(int num_word_chain = 0; num_word_chain < chains[0].size(); num_word_chain++){
+            if(!rules_map.uniqueKeys().contains((QString)chains[0][num_word_chain])){
+                size_chain_term++;
+            }else{
+                flag_no_term = true;
+            }
+        }
+        qDebug()<<flag_no_term;
+        if(size_chain_term < max && flag_no_term){
+            for(int num_word_chain = chains[0].size()-1; num_word_chain >= 0; num_word_chain--){
+                if(rules_map.uniqueKeys().contains((QString)chains[0][num_word_chain])){
+
+                    rule_variants = rules_map.values((QString)chains[0][num_word_chain]);
+                    qDebug()<< "VAriant" <<rule_variants<< " SYMB "<< chains[0][num_word_chain];
+                    qDebug() << chains[0];
+                    for (int i = 0; i < rule_variants.size(); i++){
+                        chain = chains[0].left(num_word_chain);
+                        chain +=  rule_variants[i];
+                        chain += chains[0].rightRef(chains[0].size()-num_word_chain-1);
+                        chains_next_step.push_back(chain);
+
+                    }
+                    qDebug() << chains_next_step;
+                    break;
+                }
+            }
+        }else if (!flag_no_term){
+            answer.push_back(chains[0]);
+        }
+        chains.removeFirst();
+        if(chains.size() == 0){
+            chains = chains_next_step;
+            chains_next_step.clear();
+        }
+    }
+    for(int i = 0; i < answer.size(); i++){
+        for(int j = 0; j < answer[i].size(); j++){
+            if(answer[i][j] == '~'){
+                answer[i].remove(j,1);
+                j--;
+            }
+        }
+    }
+    for (int i = answer.size() - 1 ; i >= 0; i--){
+        if(answer[i].size() < min){
+            answer.removeAt(i);
+        }
+    }
+    qDebug() <<"\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\"<< answer;
+    answer.removeDuplicates();
+    model_chains.clear();
+    for (int i = 0; i < answer.size(); i++) {
+        model_chains.appendRow(new QStandardItem(answer[i]));
+    }
+    ui->listView->setModel(&model_chains);
+    ui->listView->update();
+}
 
 void MainWindow::start_slot()
+{
+    clear_all_data();
+    read_data();
+    get_rules_for_gen_chains();
+    generation_chains();
+    //    analysis_chain_slot();
+}
+
+void MainWindow::check_slot()
 {
     clear_all_data();
     read_data();
