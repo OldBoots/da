@@ -8,7 +8,11 @@
 #include <QStandardItemModel>
 #include <QAbstractItemView>
 #include <QMessageBox>
+#include <QTextCodec>
+#include <QFileDialog>
 #include <QDebug>
+#include <QFile>
+#include <QtMath>
 
 namespace Ui {
 class MainWindow;
@@ -50,10 +54,16 @@ private:
     bool fall_back(int &i);
     QString print_vec_symb(QVector <symbol> vec);
     void clear_all_data();
+    QString read_model();
+    void gen_DMP(QStringList strs);
 private slots:
     void analysis_chain_slot();
     void start_slot();
     void check_slot();
+    void load_slot();
+    void save_slot();
+    void save_result_slot();
+    void about_slot();
 private:
     Ui::MainWindow *ui;
     QMultiMap<QString, QString> rules_map;

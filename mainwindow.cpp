@@ -8,9 +8,12 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->setupUi(this);
     qApp->installEventFilter(this);
     ui->listView->setEditTriggers( QAbstractItemView::NoEditTriggers);
-    //    connect(ui->butt_path, SIGNAL(clicked()), SLOT(start_slot()));
     connect(ui->butt_check, SIGNAL(clicked()), SLOT(check_slot()));
     connect(ui->butt_start, SIGNAL(clicked()), SLOT(start_slot()));
+    connect(ui->act_about, SIGNAL(triggered()), SLOT(about_slot()));
+    connect(ui->act_save_result, SIGNAL(triggered()), SLOT(save_result_slot()));
+    connect(ui->act_save, SIGNAL(triggered()), SLOT(save_slot()));
+    connect(ui->act_load, SIGNAL(triggered()), SLOT(load_slot()));
 }
 
 MainWindow::~MainWindow()
@@ -23,16 +26,15 @@ int MainWindow::read_data()
     start_no_term = ui->fild_start_symbol->text();
     if(start_no_term < 65 || start_no_term > 90){
         QMessageBox msgBox;
-        msgBox.setText("The end.");
+        msgBox.setText("Не правильное начальное правило.");
         msgBox.exec();
         return -1;
-
     }
     min = ui->fild_min->text().toInt();
     max = ui->fild_max->text().toInt();
     if(min > max || min < 0){
         QMessageBox msgBox;
-        msgBox.setText("The end 1.");
+        msgBox.setText("Не правильный min/max.");
         msgBox.exec();
         return -1;
     }
@@ -129,9 +131,6 @@ bool MainWindow::check_cont_chain(int index)
             str += stek[i].symb;
         }
     }
-    //    qDebug() << "UC = " << user_chain.right(user_chain.size() - index);
-    //    qDebug() << "str = " << str;
-    //    qDebug() << "i = " << index;
     if(user_chain.right(user_chain.size() - index).contains(str)){
         return true;
     }
@@ -170,10 +169,8 @@ bool MainWindow::fall_back(int &i)
 {
     if(stek.isEmpty()){
         if(check_ans_chain()){
-            qDebug("eeeee");
             return false;
         }else{
-            qDebug("Huy");
             while(ans[ans.size() - 1].term){
                 if(ans[ans.size() - 1].symb != "~"){
                     i--;
@@ -188,7 +185,9 @@ bool MainWindow::fall_back(int &i)
                 stek << ans[ans.size() - 1];
                 ans.pop_back();
             }else{
-                qDebug("The end 2.");
+                QMessageBox msgBox;
+                msgBox.setText("Цепочка не подхоит.");
+                msgBox.exec();
                 return false;
             }
         }
@@ -219,11 +218,21 @@ void MainWindow::clear_all_data()
     user_chain.clear();
     list_rules.clear();
     list_no_term.clear();
-    ui->fild_out->clear();
+//    ui->fild_out->clear();
+}
+
+QString MainWindow::read_model()
+{
+    QString str;
+    for (int i = 0; i < model_chains.rowCount(); i++) {
+        str += model_chains.takeItem(i)->text() + "\n";
+    }
+    return str;
 }
 
 void MainWindow::analysis_chain_slot()
 {
+    QString str;
     stek << symbol(start_no_term[0], 0);
     for (int i = 0; i <user_chain.size();) {
         if(stek[stek.size() - 1].term){
@@ -261,13 +270,10 @@ void MainWindow::analysis_chain_slot()
         }else{
             da(stek[stek.size() - 1].symb);
             if(stek[stek.size() - 1].var >= list_var.size() || !check_cont_chain(i)){
-                qDebug("Huy");
                 if(ans.isEmpty() && !check_end()){
-                    qDebug("huyn'a");
                     break;
                 }
                 while(ans[ans.size() - 1].term){
-                    qDebug("Huy1");
                     if(ans[ans.size() - 1].symb != "~"){
                         i--;
                     }
@@ -281,7 +287,6 @@ void MainWindow::analysis_chain_slot()
                     stek << ans[ans.size() - 1];
                     ans.pop_back();
                 }else{
-                    qDebug("The end 2.");
                     break;
                 }
             }else{
@@ -291,12 +296,21 @@ void MainWindow::analysis_chain_slot()
                 add_var(list_var[ans[ans.size() - 1].var]);
             }
         }
-        ui->fild_out->append("(Q," + QString::number(i) + "," + print_vec_symb(ans) + ", "  + print_vec_symb(stek) + ")");
-        qDebug() << "(Q," + QString::number(i) + "," + print_vec_symb(ans) + ", "  + print_vec_symb(stek) + ")";
+        str += "(Q," + QString::number(i) + "," + print_vec_symb(ans) + ", "  + print_vec_symb(stek) + ")\n";
     }
-    ui->fild_out->append("(Q," + QString::number(user_chain.size() - 1) + "," + print_vec_symb(ans) + ", "  + print_vec_symb(stek) + ")");
-    qDebug() << "(Q," + QString::number(user_chain.size() - 1) + "," + print_vec_symb(ans) + ", "  + print_vec_symb(stek) + ")";
+    str += "(Q," + QString::number(user_chain.size() - 1) + "," + print_vec_symb(ans) + ", "  + print_vec_symb(stek) + ")\n";
+    if(!check_ans_chain()){
+        QMessageBox msgBox;
+        msgBox.setText("Цепочка не подхоит.");
+        msgBox.exec();
+        return;
+    }
+    QMessageBox msgBox;
+    msgBox.setWindowTitle(user_chain);
+    msgBox.setText(str);
+    msgBox.exec();
 }
+
 void MainWindow::get_rules_for_gen_chains()
 {
     rules_map.clear();
@@ -322,15 +336,15 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 {
 
 
-     if (obj == ui->listView->viewport() && event->type() == QEvent::MouseButtonDblClick)
+    if (obj == ui->listView->viewport() && event->type() == QEvent::MouseButtonDblClick)
     {
 
-       QMouseEvent *ev = static_cast<QMouseEvent *>(event);
-       clear_all_data();
-       read_data();
-       user_chain = ui->listView->indexAt(ev->pos()).data().toString();
-       ui->fild_chain->setText(user_chain);
-       analysis_chain_slot();
+        QMouseEvent *ev = static_cast<QMouseEvent *>(event);
+        clear_all_data();
+        read_data();
+        user_chain = ui->listView->indexAt(ev->pos()).data().toString();
+        ui->fild_chain->setText(user_chain);
+        analysis_chain_slot();
     }
     return QObject::eventFilter(obj, event);
 }
@@ -359,7 +373,6 @@ void MainWindow::generation_chains()
         if(size_chain_term < max && flag_no_term){
             for(int num_word_chain = chains[0].size()-1; num_word_chain >= 0; num_word_chain--){
                 if(rules_map.uniqueKeys().contains((QString)chains[0][num_word_chain])){
-
                     rule_variants = rules_map.values((QString)chains[0][num_word_chain]);
                     qDebug()<< "VAriant" <<rule_variants<< " SYMB "<< chains[0][num_word_chain];
                     qDebug() << chains[0];
@@ -368,7 +381,6 @@ void MainWindow::generation_chains()
                         chain +=  rule_variants[i];
                         chain += chains[0].rightRef(chains[0].size()-num_word_chain-1);
                         chains_next_step.push_back(chain);
-
                     }
                     qDebug() << chains_next_step;
                     break;
@@ -392,24 +404,68 @@ void MainWindow::generation_chains()
         }
     }
     for (int i = answer.size() - 1 ; i >= 0; i--){
-        if(answer[i].size() < min){
+        if(answer[i].size() < min || answer[i].size() == 0){
             answer.removeAt(i);
         }
     }
     qDebug() <<"\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\"<< answer;
     answer.removeDuplicates();
     model_chains.clear();
+    double l = 0, r = 0;
+    QString str;
+    QStringList strs;
     for (int i = 0; i < answer.size(); i++) {
+        str += answer[i];
+    }
+    strs = str.split("");
+    strs.removeDuplicates();
+    strs.removeAll("");
+    qDebug() << "adsfgdfgas = " << strs;
+    r = strs.size();
+    for (int i = 0; i < answer.size(); i++) {
+        answer[i].size();
+        l += qPow(r, -(answer[i].size()));
+        qDebug() << l;
+        if(l > 1/r){
+            model_chains.clear();
+            QMessageBox msgBox;
+            msgBox.setText("Ошибка в КСГ.");
+            msgBox.exec();
+            return;
+        }
         model_chains.appendRow(new QStandardItem(answer[i]));
     }
     ui->listView->setModel(&model_chains);
     ui->listView->update();
+    gen_DMP(strs);
+}
+
+void MainWindow::gen_DMP(QStringList strs){
+    QStringList rule_var;
+    QStringList strsfd = rules_map.keys();
+    strsfd.removeDuplicates();
+    QString str;
+    for(auto key : strsfd){
+        rule_var = rules_map.values(key);
+        str += "{q, ~, " + key + "} = {";
+        for (int i = 0; i < rule_var.size(); i++) {
+            str += "(q, " + rule_var[i] + ")";
+            if(i < rule_var.size() - 1) { str += ", "; }
+        }
+        str += "}\n";
+    }
+    for (QString term : strs){
+        str += "{q, " + term + ", " + term + "} = {(q, ~)}\n";
+    }
+    ui->fild_out->setText(str);
 }
 
 void MainWindow::start_slot()
 {
     clear_all_data();
-    read_data();
+    if(read_data() < 0){
+        return;
+    }
     get_rules_for_gen_chains();
     generation_chains();
     //    analysis_chain_slot();
@@ -420,4 +476,86 @@ void MainWindow::check_slot()
     clear_all_data();
     read_data();
     analysis_chain_slot();
+}
+
+void MainWindow::load_slot()
+{
+    QFile file(QFileDialog::getOpenFileName(this));
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)){
+        return;
+    }
+    QTextStream in(&file);
+    QString line;
+    while (!in.atEnd()) {
+        line += in.readLine() + ":";
+    }
+    QStringList list = line.split("rules");
+    QStringList list1 = list[0].split(":");
+    QStringList list2 = list[1].split(":");
+    list2.removeAll("");
+    ui->fild_min->setText(list1[0]);
+    ui->fild_max->setText(list1[1]);
+    ui->fild_start_symbol->setText(list1[2]);
+    line.clear();
+    qDebug() << list2;
+    for(auto row : list2){
+        line += row + "\n";
+    }
+    line.chop(1);
+    ui->fild_rule->setText(line);
+}
+
+void MainWindow::save_slot()
+{
+    QFile file(QFileDialog::getSaveFileName(this));
+    QTextStream out(&file);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)){
+        return;
+    }
+    out << ui->fild_min->text() << "\n";
+    out << ui->fild_max->text() << "\n";
+    out << ui->fild_start_symbol->text() << "\n";
+    out << "rules" << "\n";
+    out << ui->fild_rule->toPlainText();
+    file.close();
+}
+
+void MainWindow::save_result_slot()
+{
+    QMessageBox msgBox;
+    QString str;
+    bool flg = false;
+    qDebug("fdfdfd");
+    if(model_chains.rowCount() == 0){
+        str += "Нет сгенерированных цепочек. ";
+        flg = true;
+    }
+    qDebug("sfdfsfs");
+    if(ui->fild_out->toPlainText().isEmpty()){
+        str += "Нет МПА. ";
+        flg = true;
+    }
+    if(flg){
+        msgBox.setText(str);
+        msgBox.exec();
+    }else{
+        QFile file("result.txt");
+        QTextStream out(&file);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)){
+            return;
+        }
+        out.setCodec(QTextCodec::codecForName("UTF-8"));
+        out << QString("КСГ:\n" + ui->fild_rule->toPlainText() + "\n\n").toUtf8();
+        out << QString("Цепочки:\n" + read_model() + "\n").toUtf8();
+        out << QString("МПА:\n" + ui->fild_out->toPlainText() + "\n").toUtf8();
+        out.flush();
+        file.close();
+    }
+}
+
+void MainWindow::about_slot()
+{
+    QMessageBox msgBox;
+    msgBox.setText("Text");
+    msgBox.exec();
 }
