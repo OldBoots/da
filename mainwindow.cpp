@@ -429,7 +429,7 @@ void MainWindow::generation_chains()
         if(l > 1/r){
             model_chains.clear();
             QMessageBox msgBox;
-            msgBox.setText("Ошибка в КСГ.");
+            msgBox.setText("Не подходит КСГ, язык не префиксный.");
             msgBox.exec();
             return;
         }
@@ -532,7 +532,7 @@ void MainWindow::save_result_slot()
     }
     qDebug("sfdfsfs");
     if(ui->fild_out->toPlainText().isEmpty()){
-        str += "Нет МПА. ";
+        str += "Нет ДМПА. ";
         flg = true;
     }
     if(flg){
@@ -547,7 +547,7 @@ void MainWindow::save_result_slot()
         out.setCodec(QTextCodec::codecForName("UTF-8"));
         out << QString("КСГ:\n" + ui->fild_rule->toPlainText() + "\n\n").toUtf8();
         out << QString("Цепочки:\n" + read_model() + "\n").toUtf8();
-        out << QString("МПА:\n" + ui->fild_out->toPlainText() + "\n").toUtf8();
+        out << QString("ДМПА:\n" + ui->fild_out->toPlainText() + "\n").toUtf8();
         out.flush();
         file.close();
     }
@@ -556,6 +556,13 @@ void MainWindow::save_result_slot()
 void MainWindow::about_slot()
 {
     QMessageBox msgBox;
-    msgBox.setText("Text");
+    msgBox.setText("Группа: ИП-917\n"
+                   "Студен: Чупрыно Л.А.\n"
+                   "Вариант: 18\n"
+                   "Задание: Написать программу, которая для языка, заданного контекстносвободной грамматикой в требуемой форме,\n"
+                   "построит детерминированный распознаватель со стековой памятью, используя алгоритм нисходящего анализа с возвратами.\n"
+                   "Программа должна сгенерировать по исходной грамматике несколько цепочек в указанном пользователем диапазоне длин и проверить их\n"
+                   "допустимость построенным ДМПА. Процессы построения цепочек и проверки их выводимости отображать на экране (по требованию).\n"
+                   "Предусмотреть возможность проверки цепочки, введённой пользователем..\n");
     msgBox.exec();
 }
